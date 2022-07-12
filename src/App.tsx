@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 import { Tree, TreeItem } from "./components/Tree";
-import { orgs } from "./data/orgs";
+import { orgs, members } from "./data/orgs";
 import { toTree } from "./utils";
 
 interface ContextProp {
@@ -9,6 +9,8 @@ interface ContextProp {
   setMoveItem: Function;
   list: TreeItem[];
   setList: Function;
+  isEdit: boolean;
+  setIsEdit: Function;
 }
 
 export const DataContext = React.createContext<ContextProp>({} as ContextProp);
@@ -16,16 +18,19 @@ export const DataContext = React.createContext<ContextProp>({} as ContextProp);
 function App() {
   const [list, setList] = useState<TreeItem[]>([]);
   const [moveItem, setMoveItem] = useState({});
+  const [isEdit, setIsEdit] = useState(false);
 
   const context = {
     list,
     setList,
     moveItem,
     setMoveItem,
+    isEdit,
+    setIsEdit,
   };
 
   useEffect(() => {
-    setList(toTree(orgs));
+    setList(toTree(orgs, members));
   }, []);
 
   return (
