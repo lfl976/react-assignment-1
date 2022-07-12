@@ -1,8 +1,14 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
-import { Button, Modal, Form, Input } from "antd";
+import { Button, Checkbox, Form, Input, Modal, Radio } from "antd";
+import { useContext, useRef, useState } from "react";
 import { DataContext } from "../App";
 import { IconOrganize, IconUser } from "../icon";
-import { classNames } from "../utils";
+import {
+  addOrgToTree,
+  classNames,
+  insertMemberToTree,
+  updateMemberOfTree,
+  updateOrgNameOfTree,
+} from "../utils";
 import { TreeItem } from "./Tree";
 
 interface TreeNodeProps {
@@ -11,92 +17,91 @@ interface TreeNodeProps {
 }
 
 export function TreeNode({ treeItem, parent }: TreeNodeProps) {
-  const [active, setActive] = useState(true);
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const nodeRef = useRef(null);
-  const { list, setList, moveItem, setMoveItem, setIsEdit } =
-    useContext(DataContext);
+  const { list, setIsEdit } = useContext(DataContext);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isAddMemberModalVisible, setIsAddMemberModalVisible] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [form] = Form.useForm();
+  const [formAddMember] = Form.useForm();
 
-  useEffect(() => {}, []);
-
-  function mouseOver(event: any) {
-    event.stopPropagation();
-    console.log(treeItem);
-  }
-
-  function handleClick(event: React.MouseEvent<HTMLElement>) {
-    event.stopPropagation();
-    // setMoveItem({
-    //   treeItem,
-    //   parent,
-    // });
-    console.log(parent);
-    if (parent) {
-      (parent as TreeItem).children = [];
-      const arr = [...list];
-      setList(arr);
-    }
-    console.log(treeItem);
-    console.log((event.currentTarget as HTMLElement).getBoundingClientRect());
-  }
-
-  function handleMouseMove(event: React.MouseEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleMouseDown(event: React.MouseEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    // console.log(parent);
-    setMoveItem({
-      treeItem,
-      parent,
-    });
-  }
-
-  function handleMouseUp(event: React.MouseEvent<HTMLElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    // if (parent !== "" && parent === moveItem.parent) return;
-    if (moveItem.parent === treeItem) return;
-    if (moveItem.treeItem === treeItem) return;
-    console.log(parent);
-    if (moveItem.treeItem) {
-      if (moveItem.parent) {
-        moveItem.parent.children = [];
-      }
-      treeItem.children.push(moveItem.treeItem);
-      console.log(list);
-      setList([...list]);
-    }
-
-    console.log(
-      "moveItem.treeItem === treeItem",
-      moveItem.treeItem === treeItem
-    );
-    console.log("moveItem.parent === treeItem", moveItem.parent === treeItem);
-  }
-
-  function handleEditOrg(id: any) {
+  function handleAddOrg() {
+    setEditItem({});
     setIsEdit(true);
     setIsModalVisible(true);
+    form.resetFields();
+  }
+
+  function handleEditOrg(item: any) {
+    setEditItem(item);
+    setIsEdit(true);
+    setIsModalVisible(true);
+    form.setFieldsValue({ OrgName: item.name });
+  }
+
+  function handleAddMember() {
+    setEditItem({ status: "activated" });
+    setIsEdit(true);
+    setIsAddMemberModalVisible(true);
+    formAddMember.resetFields();
+  }
+
+  function handleEditMember(item: any) {
+    setEditItem(item);
+    setIsEdit(true);
+    setIsAddMemberModalVisible(true);
+    formAddMember.resetFields();
+    formAddMember.setFieldsValue({
+      name: item.name,
+      age: item.age,
+      status: item.status,
+    });
   }
 
   function handleOk() {
     setIsModalVisible(false);
+    setIsAddMemberModalVisible(false);
   }
 
   function handleCancel() {
     setIsModalVisible(false);
+    setIsAddMemberModalVisible(false);
     setIsEdit(false);
   }
 
   function onFinish(values: any) {
-    console.log("Success:", values);
+    if (editItem.type === "organization") {
+      // TODO setState to up UI
+      updateOrgNameOfTree(list, editItem.id, values.OrgName);
+    } else {
+      addOrgToTree(list, treeItem.id, values.OrgName);
+    }
+    setIsModalVisible(false);
+    setIsEdit(false);
   }
 
   function onFinishFailed(errorInfo: any) {
+    console.log("Failed:", errorInfo);
+  }
+
+  function onMemberFinish(values: any) {
+    if (editItem.id) {
+      const member = {
+        ...values,
+        id: editItem.id,
+      };
+      updateMemberOfTree(list, member);
+    } else {
+      const member = {
+        ...values,
+        id: `member-${Math.random().toString(32).substring(2)}`,
+      };
+      insertMemberToTree(list, treeItem.id, member);
+    }
+    setIsAddMemberModalVisible(false);
+    setIsEdit(false);
+  }
+  function onMemberFinishFailed(errorInfo: any) {
     console.log("Failed:", errorInfo);
   }
 
@@ -107,20 +112,11 @@ export function TreeNode({ treeItem, parent }: TreeNodeProps) {
         data-oid={treeItem.id}
         data-p={treeItem.parent}
         ref={nodeRef}
-        // onMouseOver={mouseOver}
-        // onClick={handleClick}
-        // onMouseDown={handleMouseDown}
-        // onMouseUp={handleMouseUp}
-        // onMouseMove={handleMouseMove}
       >
         <div
           className="organize-name"
           data-oid={treeItem.id}
           data-p={treeItem.parent}
-          // onClick={(e) => {
-          //   e.stopPropagation();
-          //   setActive(!active);
-          // }}
         >
           <IconOrganize />
           <span className="org text-black text-2xl pointer-events-none">
@@ -153,21 +149,31 @@ export function TreeNode({ treeItem, parent }: TreeNodeProps) {
               <span className="ml-4 pointer-events-none">{`age: ${
                 item.age ? item.age : "-"
               }`}</span>
+              <Button size="small" onClick={() => handleEditMember(item)}>
+                edit
+              </Button>
             </li>
           ))}
         </ul>
-        {active ? (
-          treeItem.children?.length > 0 &&
+        <div>
+          <Button.Group>
+            <Button size="small" onClick={handleAddOrg}>
+              + Org
+            </Button>
+            <Button size="small" onClick={handleAddMember}>
+              + Member
+            </Button>
+          </Button.Group>
+        </div>
+        {treeItem.children?.length > 0 &&
           treeItem.children.map((item) => (
             <TreeNode key={item.id} treeItem={item} parent={treeItem} />
-          ))
-        ) : (
-          <hr></hr>
-        )}
+          ))}
       </div>
       <Modal
         title="Update Org Name"
         visible={isModalVisible}
+        forceRender
         footer={null}
         onOk={handleOk}
         onCancel={handleCancel}
@@ -180,6 +186,7 @@ export function TreeNode({ treeItem, parent }: TreeNodeProps) {
           onFinish={onFinish}
           onFinishFailed={onFinishFailed}
           autoComplete="off"
+          form={form}
         >
           <Form.Item
             label="OrgName"
@@ -190,6 +197,66 @@ export function TreeNode({ treeItem, parent }: TreeNodeProps) {
           </Form.Item>
 
           <Form.Item wrapperCol={{ offset: 4, span: 20 }}>
+            <Button type="primary" htmlType="submit">
+              Submit
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="Add member"
+        visible={isAddMemberModalVisible}
+        forceRender
+        footer={null}
+        onOk={handleOk}
+        onCancel={handleCancel}
+      >
+        <Form
+          name="basicMember"
+          labelCol={{ span: 6 }}
+          wrapperCol={{ span: 18 }}
+          onFinish={onMemberFinish}
+          onFinishFailed={onMemberFinishFailed}
+          autoComplete="off"
+          form={formAddMember}
+        >
+          <Form.Item
+            label="MemberName"
+            name="name"
+            rules={[
+              { required: true, message: "Please input your member name!" },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Age"
+            name="age"
+            rules={[{ required: true, message: "Please input age!" }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Status"
+            name="status"
+            rules={[{ required: true, message: "Please select status!" }]}
+          >
+            <Radio.Group>
+              <Radio value={"activated"}>activated</Radio>
+              <Radio value={"inactivated"}>inactivated</Radio>
+            </Radio.Group>
+          </Form.Item>
+          <Form.Item
+            label="Representation"
+            valuePropName="checked"
+            name="representation"
+          >
+            <Checkbox disabled={editItem?.status !== "activated"}>
+              Set As Representation
+            </Checkbox>
+          </Form.Item>
+
+          <Form.Item wrapperCol={{ offset: 6, span: 18 }}>
             <Button type="primary" htmlType="submit">
               Submit
             </Button>

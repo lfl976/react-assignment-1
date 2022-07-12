@@ -87,6 +87,7 @@ export function deleteFromTree(tree: any, id: string) {
 
 export function insertToTree(tree: any, id: string, insertTree: any) {
   if (!id) {
+    insertTree.parent = null;
     tree.push(insertTree);
     return;
   }
@@ -128,27 +129,6 @@ export function isChildOfParent(tree: any, parentId: string, childId: string) {
   return false;
 }
 
-// export function deleteMemberFromTree(tree: any, mid: string) {
-//   if (!mid) return;
-//   const t: any = {
-//     children: tree,
-//   };
-//   let res: any;
-//   function traverse(t: any) {
-//     if (t.members?.length) {
-//       const index = t.members.findIndex((item: any) => item.id === mid);
-//       if (index > -1) {
-//         res = t.members.splice(index, 1);
-//         return;
-//       }
-//     }
-//     if (t.children) {
-//       t.children.forEach((item: any) => traverse(item));
-//     }
-//   }
-//   traverse(t);
-//   return res[0];
-// }
 export function deleteMemberFromTree(tree: any, mid: string) {
   if (!mid) return;
   const queue = [...tree];
@@ -176,12 +156,84 @@ export function insertMemberToTree(tree: any, oid: string, member: any) {
   while (queue.length) {
     const first = queue.shift();
     if (first.id === oid) {
+      if (member.representation) {
+        first.representation = member.id;
+        delete member.representation;
+      }
       if (first.members) {
         first.members.push(member);
       } else {
         first.members = [member];
       }
       return;
+    }
+    if (first.children) {
+      queue.push(...first.children);
+    }
+  }
+}
+
+export function updateOrgNameOfTree(tree: any, oid: string, newName: string) {
+  const queue = [...tree];
+  while (queue.length) {
+    const first = queue.shift();
+    if (first.id === oid) {
+      first.name = newName;
+      return;
+    }
+    if (first.children) {
+      queue.push(...first.children);
+    }
+  }
+}
+
+export function addOrgToTree(tree: any, pid: string, name: string) {
+  const orgItem = {
+    children: [],
+    id: `org-${Math.random().toString(32).substring(2)}`,
+    members: [],
+    name,
+    parent: null,
+    representation: "",
+    type: "organization",
+  };
+  if (!pid) {
+    tree.push(orgItem);
+    return;
+  }
+  const queue = [...tree];
+  while (queue.length) {
+    const first = queue.shift();
+    if (first.id === pid) {
+      orgItem.parent = pid as any;
+      if (first.children) {
+        first.children.push(orgItem);
+      } else {
+        first.children = [orgItem];
+      }
+    }
+    if (first.children) {
+      queue.push(...first.children);
+    }
+  }
+}
+
+export function updateMemberOfTree(tree: any, member: any) {
+  const queue = [...tree];
+  while (queue.length) {
+    const first = queue.shift();
+    if (first.members) {
+      for (let i = 0; i < first.members.length; i++) {
+        const oldMember = first.members[i];
+        if (oldMember.id === member.id) {
+          if (member.representation) {
+            first.representation = member.id;
+            delete member.representation;
+          }
+          first.members[i] = member;
+          return true;
+        }
+      }
     }
     if (first.children) {
       queue.push(...first.children);

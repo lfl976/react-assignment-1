@@ -2,12 +2,13 @@ import React, { useContext, useRef, useState } from "react";
 import { DataContext } from "../App";
 import {
   deleteFromTree,
-  insertToTree,
-  isChildOfParent,
   deleteMemberFromTree,
   insertMemberToTree,
+  insertToTree,
+  isChildOfParent,
 } from "../utils";
 import { TreeNode } from "./TreeNode";
+
 export interface TreeItem {
   name: string;
   id: string;
@@ -19,36 +20,36 @@ export interface TreeItem {
 interface TreeProps {
   tree: TreeItem[];
 }
+
 export function Tree({ tree }: TreeProps) {
   const [isMoving, setIsMoving] = useState(false);
   const [position, setPosition] = useState({ x: -100, y: -100 });
-  const [offsetPosition, setOffsetPosition] = useState({ x: 0, y: 0 });
   const placeHolder = useRef(null);
-  const { list, setList, moveItem, setMoveItem, isEdit } =
-    useContext(DataContext);
+  const { setList, moveItem, setMoveItem, isEdit } = useContext(DataContext);
   function handleMouseMove(event: React.MouseEvent<HTMLElement>) {
+    if (!isEdit) {
+      event.preventDefault();
+    } else {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (!isMoving) return;
     setPosition({
-      x: event.pageX - offsetPosition.x,
-      y: event.pageY - offsetPosition.y,
+      x: event.pageX,
+      y: event.pageY,
     });
   }
 
   function handleMouseDown(event: React.MouseEvent<HTMLElement>) {
-    // console.log(event.currentTarget);
     if (!isEdit) {
       event.preventDefault();
     } else {
       return;
     }
     event.stopPropagation();
-    // console.log((event.target as HTMLElement).dataset.oid);
     const dataset = (event.target as HTMLElement).dataset;
-    console.log(dataset);
     if (dataset.oid) {
-      console.log((event.target as HTMLElement).getBoundingClientRect());
       setMoveItem({ id: dataset.oid, parent: dataset.p, type: "org" });
       setIsMoving(true);
       setPosition({ x: event.pageX, y: event.pageY });
@@ -98,10 +99,7 @@ export function Tree({ tree }: TreeProps) {
         setTree(moveItem.id, "");
       }
     } else if (moveItem.type === "member") {
-      console.log("there");
       const moveMid = moveItem.id;
-      console.log(moveItem);
-      console.log(target);
       if (dataset.mid) {
         if (dataset.mid === moveMid) return;
         const ppEle = (target as any).parentElement.parentElement;
@@ -119,8 +117,6 @@ export function Tree({ tree }: TreeProps) {
     const cloneTree = structuredClone(tree);
     const member = deleteMemberFromTree(cloneTree, mid);
     insertMemberToTree(cloneTree, oid, member);
-    console.log(member);
-    console.log(cloneTree);
     setList(cloneTree);
   }
 
